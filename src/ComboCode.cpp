@@ -10,6 +10,7 @@
 using namespace vex;
 
 int countBB = 0;
+int countturn = 0;
 int MaxWait = 32;
 double disShoot = 606;
 double MAX_JUMP = 36;
@@ -19,6 +20,7 @@ bool R_upRuning = false;
 bool GoToAutoShoot = false;
 bool intake_uplaw = false;
 bool firstAutoshoot = false;
+bool TurnRightNow = false;
 
 void IntakeBeanBag()
 {
@@ -130,27 +132,33 @@ void L4_Combo()
 
 void Shoot()
 {
+    // ==================================================
+    // [1] INITIALIZE : เตรียมระบบก่อนเริ่มยิง
+    // ==================================================
     LED.setColor(yellow);
     Brain.resetTimer();
-    R_upRuning = true;
-    // FiringUnit.spin(forward);
-    // wait(0.2, sec);
-    // reload_Now = true;
 
-    int speedAuto = 127;
-    // bool GoRpshoot;
-    int disOK = 0;
-    double powerstop = 5;
-    bool shootnow = false;
+    R_upRuning = true;
     speedlimitOn = true;
 
+    int speedAuto = 127;
+    int disOK = 0;
+
+    double powerstop = 5;
+
+    bool shootnow = false;
+    bool shootSmooth = false;
+
+    // ==================================================
+    // [2] INTAKE DETECTION : ตรวจจับระยะและรับลูก
+    // ==================================================
     if (!intake_uplaw)
     {
-        // GoRpshoot = true;
         LED.setColor(blue);
-        while (distanceBack.objectDistance(mm) > 190) // no.7 190
+
+        // รอจนกว่าจะเข้าใกล้ระยะ 180 mm
+        while (distanceBack.objectDistance(mm) > 180)
         {
-            // _ //
             double dis = distanceBack.objectDistance(mm);
 
             Brain.Screen.clearLine(3, 1);
@@ -158,57 +166,155 @@ void Shoot()
             Brain.Screen.print("Dis: %.2f", dis);
 
             if (dis <= 180)
-            {
                 disOK++;
-            }
             else
-            {
                 disOK = 0;
-            }
+
             wait(10, msec);
         }
-        // Intake
+
+        // หยุดระบบขับเคลื่อนก่อนรับลูกบอล
         Drive = false;
+
+        DriveTrainStop_SetStop(coast);
         wait(30, msec);
         DriveTrainStop_SetStop(brake);
+
+        // สั่งกลไกจับลูกบอล
         hand.extend(cylinder2);
+
+        // เปลี่ยนความเร็วสำหรับกรณี Intake
         speedAuto = -30;
+
         IntakeBeanBag();
     }
+
+    // ==================================================
+    // [3] FRONT DISTANCE CHECK : ตรวจสอบระยะด้านหน้า
+    // ==================================================
     Drive = false;
-    // int count = 0;
+
     wait(100, msec);
-    if (distanceFront.objectDistance(mm) < 15)
+
+    double frontDis = distanceFront.objectDistance(mm);
+
+    // กรณีอยู่ชิดแนวยิงอยู่แล้ว
+    if (frontDis < 15)
     {
         DriveTrainStop_SetStop(coast);
         shootnow = true;
     }
-    if (distanceFront.objectDistance(mm) < 500)
+
+    // ==================================================
+    // [4] SMOOTH DECELERATION : ลดความเร็วตามระยะ
+    // ==================================================
+    else if (frontDis < 500)
     {
         powerstop = 1;
-        DT_Left.setMaxTorque(5, pct);
-        DT_Right.setMaxTorque(5, pct);
-        SetVel_DtLeft_DtRight(80.0, 100.0);
-        wait(0.2, seconds);
+
+        const double startDis = 500.0;
+        const double stopDis = 38.0;
+
+        const double minSpeed = 10.0;
+        const double maxSpeed = 100.0;
+
+        // ตั้งค่าแรงบิดเริ่มต้น
+        DT_Left.setMaxTorque(100, pct);
+        DT_Right.setMaxTorque(100, pct);
+
+        // ปรับแนวเริ่มต้นตามค่าที่ใช้อยู่เดิม
+        SetVel_DtLeft_DtRight(100, 100);
+
+        DT_Left.spin(forward);
+        DT_Right.spin(reverse);
+
+        wait(50, msec);
+
+        DriveTrainStop_SetStop(coast);
+
+        // ----------------------------------------------
+        // Smoothstep Loop
+        // ----------------------------------------------
+        while (true)
+        {
+            double dis = distanceFront.objectDistance(mm);
+
+            // ถึงระยะเป้าหมายแล้วออกจาก Loop
+            if (dis <= stopDis)
+                break;
+
+            // Normalize ระยะ
+            double t = (dis - stopDis) /
+                       (startDis - stopDis);
+
+            if (t > 1.0)
+                t = 1.0;
+
+            if (t < 0.0)
+                t = 0.0;
+
+            // Smoothstep
+            double smooth = t * t * (3.0 - 2.0 * t);
+
+            // คำนวณความเร็วหลัก
+            double currentSpeed =
+                minSpeed + (maxSpeed - minSpeed) * smooth;
+
+            // ปรับความเร็วซ้ายและขวา
+            double leftSpeed = currentSpeed * 0.9;
+            double rightSpeed = currentSpeed;
+
+            // จำกัดความเร็ว
+            if (leftSpeed < 0)
+                leftSpeed = 0;
+
+            if (rightSpeed > 127)
+                rightSpeed = 127;
+
+            // สั่งความเร็ว
+            SetVel_DtLeft_DtRight(leftSpeed, rightSpeed);
+
+            // สั่งถอยหลัง
+            DT_Left.spin(reverse);
+            DT_Right.spin(reverse);
+
+            wait(10, msec);
+        }
+
+        // แจ้งว่าผ่านระบบ Smooth แล้ว
+        shootSmooth = true;
     }
+
+    // ==================================================
+    // [5] NORMAL APPROACH : เคลื่อนที่เข้าหากำแพงแบบปกติ
+    // ==================================================
     else
     {
         SetVel_DtLeft_DtRight(speedAuto, 127);
     }
-    // -----Go shoot L3---------
-    if (!shootnow)
+
+    // ----------------------------------------------
+    // กรณีที่ไม่ได้ใช้ Smooth และไม่ได้ชิดแนวยิงแล้ว
+    // ----------------------------------------------
+    if (!shootnow && !shootSmooth)
     {
         DT_Left.spin(reverse);
         DT_Right.spin(reverse);
+
         wait(0.2, seconds);
     }
-    if (speedAuto == -30)
+
+    // กรณี Intake ต้องกำหนดความเร็วใหม่
+    if (speedAuto == -30 && !shootnow && !shootSmooth)
     {
         SetVel_DtLeft_DtRight(100.0, 100.0);
+
         DT_Left.spin(reverse);
         DT_Right.spin(reverse);
     }
-    if (!shootnow)
+
+    // รอจนเข้าเขตระยะ 450 mm
+    if (!shootnow && !shootSmooth)
     {
         while (distanceFront.objectDistance(mm) >= 450)
         {
@@ -216,176 +322,307 @@ void Shoot()
             wait(5, msec);
         }
     }
+
+    // ==================================================
+    // [6] WALL ALIGNMENT : ปรับแนวเข้าชิดกำแพง
+    // ==================================================
+
+    // หยุดแบบ Coast ก่อนปรับแนว
     DriveTrainStop_SetStop(coast);
-    if (!shootnow)
+
+    if (!shootnow && !shootSmooth)
     {
         wait(0.3, seconds);
     }
+
+    // ลด Torque เพื่อให้การปรับแนวไม่รุนแรง
     DT_Left.setMaxTorque(30, pct);
     DT_Right.setMaxTorque(30, pct);
+
+    // ปรับความเร็วซ้ายและขวาไม่เท่ากัน
     SetVel_DtLeft_DtRight(40.0, 60.0);
+
     DT_Left.spin(reverse);
     DT_Right.spin(reverse);
+
     if (!shootnow)
     {
         wait(0.3, seconds);
     }
-    // DT_Left.setMaxTorque(5, pct);
-    // DT_Right.setMaxTorque(5, pct);
-    // DT_Left.spin(reverse);
-    // DT_Right.spin(reverse);
-    while (fabs(DT_Right.velocity(percent)) > powerstop && fabs(DT_Left.velocity(percent)) > powerstop)
+
+    // ==================================================
+    // [7] STOP DETECTION : รอให้มอเตอร์ลดความเร็ว
+    // ==================================================
+
+    while (
+        fabs(DT_Right.velocity(percent)) > powerstop &&
+        fabs(DT_Left.velocity(percent)) > powerstop)
     {
-        printf("I am in again\n");
         wait(20, msec);
     }
-    // wait(1, seconds);
+
+    // กำหนดความเร็วต่ำก่อนยิง
     SetVel_DtLeft_DtRight(5.0, 5.0);
+
+    // คืน Torque สำหรับระบบยิง
     DT_Left.setMaxTorque(100, pct);
     DT_Right.setMaxTorque(100, pct);
+
     DT_Left.spin(reverse);
     DT_Right.spin(reverse);
-    // DriveTrainStop_SetStop(brake);
+
+    // ==================================================
+    // [8] FIRE : ระบบยิง
+    // ==================================================
+
+    FiringUnit.spin(reverse);
     wait(0.08, seconds);
-    // --------- shoot --------------
+
+    // ยิง
     FiringUnit.spin(forward);
     wait(0.2, seconds);
-    // --------- Start Exit ---------
+
+    // ==================================================
+    // [9] EXIT : เคลื่อนที่ออกจากจุดยิง
+    // ==================================================
+
     SetVel_DtLeft_DtRight(100.0, 100.0);
+
     reload_Now = true;
+
     DT_Left.spin(forward);
     DT_Right.spin(forward);
+
     wait(0.2, seconds);
+
+    // หมุนปรับทิศทางหลังยิงลูกที่ 2
     if (countBB >= 2 && !GoToAutoShoot)
     {
         DT_Left.spin(reverse);
         DT_Right.spin(forward);
+
         wait(0.2, seconds);
     }
+
+    // ==================================================
+    // [10] AUTO SHOOT : ยิงต่ออัตโนมัติ
+    // ==================================================
+
     if (GoToAutoShoot)
     {
         R_upRuning = false;
+
         Auto_shot();
+
         GoToAutoShoot = false;
     }
+
+    // ==================================================
+    // [11] RESET : คืนค่าสถานะระบบ
+    // ==================================================
+
     countBB += 1;
+
     Drive = true;
+
     Intake_Already_done = false;
+
     R_upRuning = false;
+
     intake_uplaw = false;
+
     speedlimitOn = false;
+
     LED.setColor(green);
 }
 
 void Auto_shot()
 {
+    // ==================================================
+    // [1] INITIALIZE : เตรียมระบบ Auto Shoot
+    // ==================================================
     Brain.resetTimer();
+
+    // ตรวจสอบว่า Shoot หลักกำลังทำงานอยู่หรือไม่
     if (R_upRuning)
     {
+        // แจ้งว่าต้องการเรียก Auto Shoot
+        // แต่ยังไม่เริ่มทำงานทันที
         GoToAutoShoot = true;
+
         LED.setColor(red);
     }
+
+    // ==================================================
+    // [2] START AUTO SHOOT : เริ่มระบบยิงอัตโนมัติ
+    // ==================================================
     else
     {
+        // ปิดการควบคุม Drive จากระบบหลัก
         Drive = false;
+
+        // แจ้งสถานะว่า Auto Shoot กำลังทำงาน
         AutoShootRuning = true;
+
+        // เปิดสถานะการทำงานของ Intake
         Intake_action_now = true;
         intake_Now = true;
+
         wait(0.1, sec);
+
+        // ปิดความต้องการให้ระบบอื่นควบคุมการเคลื่อนที่
         I_want_to_drive = false;
+
         LED.setColor(red);
+
+        // ==================================================
+        // [3] AUTO SHOOT LOOP : วนทำงาน Auto Shoot
+        // ==================================================
         while (true)
         {
-            // int disOK = 0;
+            // ตัวนับจำนวนครั้งที่ตรวจพบระยะ Intake
             int count = 0;
+
+            // กำหนด Torque ของมอเตอร์ขับเคลื่อน
             DT_Left.setMaxTorque(100, pct);
             DT_Right.setMaxTorque(100, pct);
+
+            // ==================================================
+            // [4] MOVEMENT & POSITIONING : จัดตำแหน่งหุ่นยนต์
+            // ==================================================
+
+            // ----------------------------------------------
+            // กรณีการเคลื่อนที่ครั้งแรก
+            // ----------------------------------------------
             if (firstAutoshoot)
             {
                 SetVel_DtLeft_DtRight(10.0, 100.0);
+
                 DT_Left.spin(forward);
                 DT_Right.spin(forward);
+
                 wait(0.22, sec);
             }
+
+            // ----------------------------------------------
+            // กรณีการเคลื่อนที่ครั้งถัดไป
+            // ----------------------------------------------
             else
             {
+                // หมุนปรับทิศทาง
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+
+                DT_Left.spin(reverse);
+                DT_Right.spin(forward);
+
+                wait(0.05, sec);
+
+                // เคลื่อนที่ไปข้างหน้า
                 SetVel_DtLeft_DtRight(10.0, 100.0);
+
                 DT_Left.spin(forward);
                 DT_Right.spin(forward);
+
                 wait(0.15, sec);
             }
 
+            // เปลี่ยนสถานะหลังจากเคลื่อนที่ครั้งแรก
             firstAutoshoot = true;
+
+            // ==================================================
+            // [5] INTAKE DETECTION : ตรวจจับระยะรับลูกบอล
+            // ==================================================
+
+            // กำหนดความเร็วสำหรับการเคลื่อนที่เข้าหาจุดรับลูก
             SetVel_DtLeft_DtRight(65.0, 65.0);
+
             DT_Left.spin(forward);
             DT_Right.spin(forward);
+
             LED.setColor(red);
-            // wait(0.4, sec);
+
+            // รอจนกว่า Distance Back จะตรวจพบระยะ 180 mm
             while (true)
             {
-                // _ //
-                // wait(20, msec);
                 if (distanceBack.objectDistance(mm) <= 180)
                 {
                     count++;
+
+                    // ต้องตรวจพบครบ 3 ครั้งจึงออกจาก Loop
                     if (count == 3)
                     {
                         break;
                     }
                 }
+
                 wait(10, msec);
             }
-            // SetVel_DtLeft_DtRight(35.0, 35.0);
-            // DT_Left.spin(forward);
-            // DT_Right.spin(forward);
-            // wait(0.1, sec);
-            // while (distanceBack.objectDistance(mm) > 170)
-            // {
-            //     // _ //
-            //     // wait(10, msec);
-            // }
-            // Intake
+
+            // ==================================================
+            // [6] INTAKE ACTION : หยุดและรับลูกบอล
+            // ==================================================
+
+            // หยุดระบบขับเคลื่อนแบบ Coast
             DriveTrainStop_SetStop(coast);
-            wait(50, msec);
+
+            wait(40, msec);
+
+            // ตั้งค่ามอเตอร์ Intake
             Intake.setVelocity(127, percent);
             Intake.setMaxTorque(100, percent);
+
+            // เริ่มรับลูกบอล
             Intake.spin(forward);
-            // hand.extend(cylinder2);
+
             IntakeBeanBag();
-            // DriveTrainStop_SetStop(brake);
-            //----
+
+            // รอให้ระบบ Intake ทำงาน
             wait(450, msec);
-            // IntakeBeanBag();
-            //---
-            // DT_Left.setMaxTorque(100, pct);
-            // DT_Right.setMaxTorque(100, pct);
-            // SetVel_DtLeft_DtRight(0, 100.0);
-            // DT_Left.stop();
-            // DT_Right.spin(reverse);
-            // wait(200, msec);
-            // DT_Right.stop();
-            // go shoot
+
+            // ==================================================
+            // [7] GO TO SHOOT POSITION : เข้าตำแหน่งยิง
+            // ==================================================
+
+            // เคลื่อนที่ด้วยความเร็วต่ำ
             SetVel_DtLeft_DtRight(20.0, 30.0);
+
             DT_Left.spin(reverse);
             DT_Right.spin(reverse);
+
             wait(200, msec);
+
+            // เพิ่มความเร็วเพื่อเคลื่อนที่ต่อ
             SetVel_DtLeft_DtRight(60.0, 70.0);
+
             DT_Left.spin(reverse);
             DT_Right.spin(reverse);
-            // ---- wait shoot ----
+
+            // ==================================================
+            // [8] SHOOT DISTANCE DETECTION : ตรวจจับระยะยิง
+            // ==================================================
+
             int i = 0;
             int disOK = 0;
+
             double lastDis = 0;
+
+            // รอจนกว่าจะพบระยะที่ต้องการ หรือครบ MaxWait
             while (i <= MaxWait)
             {
                 double dis = distanceBack.objectDistance(mm);
+
                 int disInt = dis;
                 int diff = dis - lastDis;
 
+                // แสดงระยะบน Brain Screen
                 Brain.Screen.clearLine(3, 1);
                 Brain.Screen.setCursor(3, 1);
+
                 Brain.Screen.print("Dis: %.2f", dis);
 
+                // ------------------------------------------
+                // ตรวจสอบระยะและการเปลี่ยนแปลงของระยะ
+                // ------------------------------------------
                 if (dis >= disShoot &&
                     diff < MAX_JUMP)
                 {
@@ -396,15 +633,22 @@ void Auto_shot()
                     disOK = 0;
                 }
 
-                printf("\n%d | Dis = %d | Diff = %d | OK = %d",
-                       i,
-                       disInt,
-                       diff,
-                       disOK);
+                // แสดงข้อมูล Debug
+                printf(
+                    "\n%d | Dis = %d | Diff = %d | OK = %d",
+                    i,
+                    disInt,
+                    diff,
+                    disOK);
 
+                // เก็บค่าระยะล่าสุด
                 lastDis = dis;
+
                 i += 1;
 
+                // ------------------------------------------
+                // เงื่อนไขออกจากการตรวจจับระยะ
+                // ------------------------------------------
                 if (disOK == 1)
                 {
                     if (i > 28)
@@ -412,46 +656,133 @@ void Auto_shot()
                         break;
                     }
                 }
+
                 wait(20, msec);
             }
+
+            // ==================================================
+            // [9] SHOOT DISTANCE DEBUG : แสดงผลระยะสุดท้าย
+            // ==================================================
+
             printf("\n ============== End =================");
+
             Brain.Screen.clearLine(3, 1);
             Brain.Screen.setCursor(3, 1);
-            Brain.Screen.print("Dis: %.2f", distanceBack.objectDistance(mm));
+
+            Brain.Screen.print(
+                "Dis: %.2f",
+                distanceBack.objectDistance(mm));
+
             int exit = distanceBack.objectDistance(mm);
+
             printf("\n%d", exit);
-            // Touchled8.setColor(yellow);
-            // -------------------
-            // SetVel_DtLeft_DtRight(100, 100.0);
-            // // DT_Left.spin(forward);
-            // DT_Right.spin(reverse);
-            // DT_Left.stop();
-            // wait(100, msec);
-            // --------- shoot --------------
+
+            // ==================================================
+            // [10] FIRE : สั่งยิง
+            // ==================================================
+
             FiringUnit.setStopping(coast);
             FiringUnit.stop();
+
             FiringUnit.spin(forward);
+
             wait(0.2, seconds);
-            // --------- Start Exit ---------
+
+            // ==================================================
+            // [11] RELOAD : แจ้งสถานะการ Reload
+            // ==================================================
+
             reload_Now = true;
-            // }
+
+            // ==================================================
+            // [12] STOP : หยุดระบบขับเคลื่อนหลังยิง
+            // ==================================================
+
             DriveTrainStop_SetStop(brake);
+
             wait(0.3, sec);
-            // --------------------
-            // Pneumatic10.pumpOn();
-            // SetVel_DtLeft_DtRight(100.0, 100.0);
-            // DT_Left.spin(reverse);
-            // DT_Right.spin(forward);
-            // wait(0.3, sec);
-            //----------------------
-            // wait(0.3, sec);
+
+            // ==================================================
+            // [13] EXIT CONDITION : ตรวจสอบเงื่อนไขออกจาก Loop
+            // ==================================================
+
+            // ถ้าระบบภายนอกต้องการให้หุ่นยนต์กลับไปขับเคลื่อน
+            // ให้ออกจาก Auto Shoot Loop
             if (I_want_to_drive)
             {
                 break;
             }
         }
+
+        // ==================================================
+        // [14] RESET : คืนสถานะหลังจบ Auto Shoot
+        // ==================================================
+
         LED.setColor(green);
+
         AutoShootRuning = false;
+
+        if (TurnRightNow)
+        {
+            TurnRight();
+        }
+
+        Drive = true;
+    }
+}
+
+void TurnRight()
+{
+    if (!I_want_to_drive)
+    {
+        I_want_to_drive = true;
+        TurnRightNow = true;
+    }
+    else
+    {
+        Drive = false;
+        if (countturn == 0)
+        {
+            SetVel_DtLeft_DtRight(100.0, 100.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.4, sec);
+            SetVel_DtLeft_DtRight(100.0, 5.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.3, sec);
+            SetVel_DtLeft_DtRight(100.0, 100.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.4, sec);
+        }
+        else
+        {
+            wait(0.15, sec);
+            SetVel_DtLeft_DtRight(100.0, 100.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(reverse);
+            wait(0.3, sec);
+            DriveTrainStop_SetStop(brake);
+            wait(0.1, sec);
+            SetVel_DtLeft_DtRight(100.0, 100.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.38, sec);
+            SetVel_DtLeft_DtRight(100.0, 5.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.33, sec);
+            DriveTrainStop_SetStop(brake);
+            // wait(0.1, sec);
+            SetVel_DtLeft_DtRight(100.0, 100.0);
+            DT_Left.spin(forward);
+            DT_Right.spin(forward);
+            wait(0.27, sec);
+        }
+        DriveTrainStop_SetStop(brake);
+        wait(0.1, sec);
+        countturn++;
         Drive = true;
     }
 }

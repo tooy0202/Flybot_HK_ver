@@ -43,7 +43,7 @@ void Intake_up()
     // no.8 = 380
     if (AutoShootRuning)
     {
-        intakeWaitTime = 310;
+        intakeWaitTime = 320;
     }
     while (fabs(Intake.velocity(pct)) > 5 &&
            waitTime < intakeWaitTime)

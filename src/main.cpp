@@ -118,6 +118,7 @@ int main()
     Controller.ButtonEUp.pressed(shootDm);
     Controller.ButtonEDown.pressed(Intake_L4);
     Controller.ButtonR3.pressed(Start_game);
+    Controller.ButtonL3.pressed(TurnRight);
 
     // task
     vex::task Intake_auto(getIntake);
