@@ -76,7 +76,8 @@ void Intake_down()
     }
 
     waitTime = 0;
-
+    Intake_action_now = false;
+    
     while (fabs(Intake.velocity(pct)) > 5 &&
            waitTime < 1200)
     {
@@ -94,7 +95,7 @@ void Intake_down()
         wait(50, msec);
         Intake.stop();
     }
-    Intake_action_now = false;
+    
 }
 
 void IntakeCheckUp_Down()

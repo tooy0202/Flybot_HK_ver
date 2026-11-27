@@ -14,6 +14,7 @@ int countturn = 0;
 int MaxWait = 32;
 double disShoot = 606;
 double MAX_JUMP = 36;
+bool press = false;
 bool AutoShootRuning = false;
 bool speedlimitOn = false;
 bool R_upRuning = false;
@@ -32,18 +33,21 @@ void IntakeBeanBag()
 
 void Intake_L4()
 {
-    Brain.resetTimer();
-    Drive = false;
-    wait(0.1, sec);
-    DriveTrainStop_SetStop(brake);
-    SetVel_DtLeft_DtRight(50, 50);
-    DT_Left.spinFor(forward, 70, degrees, false);
-    DT_Right.spinFor(forward, 70, degrees, false);
-    wait(0.35, sec);
-    Drive = true;
-    Grab_Action();
-    wait(0.1, sec);
-    Intake_up();
+    if (!press)
+    {
+        Brain.resetTimer();
+        Drive = false;
+        wait(0.1, sec);
+        DriveTrainStop_SetStop(brake);
+        SetVel_DtLeft_DtRight(50, 50);
+        DT_Left.spinFor(forward, 70, degrees, false);
+        DT_Right.spinFor(forward, 70, degrees, false);
+        wait(0.35, sec);
+        Drive = true;
+        Grab_Action();
+        wait(0.1, sec);
+        Intake_up();
+    }
 }
 
 void Start_game()
@@ -77,7 +81,7 @@ void Start_game()
         /* code */
         wait(20, msec);
     }
-    wait(100, msec);
+    wait(50, msec);
     // start
     // DT_Left.stop();
     // DT_Right.stop();
@@ -86,7 +90,7 @@ void Start_game()
     Intake.setStopping(hold);
     wait(0.1, sec);
     intake_Now = true;
-    wait(0.2, sec);
+    wait(0.25, sec);
     L4_up();
     wait(0.6, sec);
     SetVel_DtLeft_DtRight(100, 100);
@@ -116,7 +120,7 @@ void L4_Combo()
     // wait(0.15, sec);
     intake_Now = true;
     // Intake_down();
-    wait(0.2, sec);
+    wait(0.25, sec);
     L4_up();
     wait(0.7, sec);
     SetVel_DtLeft_DtRight(100, 100);
@@ -137,7 +141,7 @@ void Shoot()
     // ==================================================
     LED.setColor(yellow);
     Brain.resetTimer();
-
+    press = true;
     R_upRuning = true;
     speedlimitOn = true;
 
@@ -187,6 +191,7 @@ void Shoot()
         speedAuto = -30;
 
         IntakeBeanBag();
+        intake_uplaw = false;
     }
 
     // ==================================================
@@ -199,23 +204,27 @@ void Shoot()
     double frontDis = distanceFront.objectDistance(mm);
 
     // กรณีอยู่ชิดแนวยิงอยู่แล้ว
-    if (frontDis < 15)
+    if (frontDis < 80)
     {
-        DriveTrainStop_SetStop(coast);
+        // DriveTrainStop_SetStop(coast);
+        SetVel_DtLeft_DtRight(100, 100);
+        DT_Left.spin(reverse);
+        DT_Right.spin(reverse);
+        wait(100, msec);
         shootnow = true;
     }
 
     // ==================================================
     // [4] SMOOTH DECELERATION : ลดความเร็วตามระยะ
     // ==================================================
-    else if (frontDis < 500)
+    else if (frontDis < 450)
     {
         powerstop = 1;
 
-        const double startDis = 500.0;
-        const double stopDis = 38.0;
+        const double startDis = 450.0;
+        const double stopDis = 32.0;
 
-        const double minSpeed = 10.0;
+        const double minSpeed = 18.0;
         const double maxSpeed = 100.0;
 
         // ตั้งค่าแรงบิดเริ่มต้น
@@ -362,7 +371,7 @@ void Shoot()
     }
 
     // กำหนดความเร็วต่ำก่อนยิง
-    SetVel_DtLeft_DtRight(5.0, 5.0);
+    SetVel_DtLeft_DtRight(10.0, 10.0);
 
     // คืน Torque สำหรับระบบยิง
     DT_Left.setMaxTorque(100, pct);
@@ -394,6 +403,7 @@ void Shoot()
     DT_Right.spin(forward);
 
     wait(0.2, seconds);
+    press = false;
 
     // หมุนปรับทิศทางหลังยิงลูกที่ 2
     if (countBB >= 2 && !GoToAutoShoot)
@@ -429,8 +439,6 @@ void Shoot()
 
     R_upRuning = false;
 
-    intake_uplaw = false;
-
     speedlimitOn = false;
 
     LED.setColor(green);
@@ -442,7 +450,7 @@ void Auto_shot()
     // [1] INITIALIZE : เตรียมระบบ Auto Shoot
     // ==================================================
     Brain.resetTimer();
-
+    press = true;
     // ตรวจสอบว่า Shoot หลักกำลังทำงานอยู่หรือไม่
     if (R_upRuning)
     {
@@ -494,14 +502,14 @@ void Auto_shot()
             // ----------------------------------------------
             // กรณีการเคลื่อนที่ครั้งแรก
             // ----------------------------------------------
-            if (firstAutoshoot)
+            if (!firstAutoshoot)
             {
                 SetVel_DtLeft_DtRight(10.0, 100.0);
 
                 DT_Left.spin(forward);
                 DT_Right.spin(forward);
 
-                wait(0.22, sec);
+                wait(0.15, sec);
             }
 
             // ----------------------------------------------
@@ -515,15 +523,15 @@ void Auto_shot()
                 DT_Left.spin(reverse);
                 DT_Right.spin(forward);
 
-                wait(0.05, sec);
+                wait(0.13, sec);
 
                 // เคลื่อนที่ไปข้างหน้า
-                SetVel_DtLeft_DtRight(10.0, 100.0);
+                SetVel_DtLeft_DtRight(100.0, 10.0);
 
                 DT_Left.spin(forward);
                 DT_Right.spin(forward);
 
-                wait(0.15, sec);
+                wait(0.1, sec);
             }
 
             // เปลี่ยนสถานะหลังจากเคลื่อนที่ครั้งแรก
@@ -534,7 +542,7 @@ void Auto_shot()
             // ==================================================
 
             // กำหนดความเร็วสำหรับการเคลื่อนที่เข้าหาจุดรับลูก
-            SetVel_DtLeft_DtRight(65.0, 65.0);
+            SetVel_DtLeft_DtRight(70.0, 70.0);
 
             DT_Left.spin(forward);
             DT_Right.spin(forward);
@@ -577,7 +585,7 @@ void Auto_shot()
             IntakeBeanBag();
 
             // รอให้ระบบ Intake ทำงาน
-            wait(450, msec);
+            wait(350, msec);
 
             // ==================================================
             // [7] GO TO SHOOT POSITION : เข้าตำแหน่งยิง
@@ -713,6 +721,7 @@ void Auto_shot()
                 break;
             }
         }
+        press = false;
 
         // ==================================================
         // [14] RESET : คืนสถานะหลังจบ Auto Shoot
@@ -733,56 +742,82 @@ void Auto_shot()
 
 void TurnRight()
 {
-    if (!I_want_to_drive)
+    if (!press)
     {
-        I_want_to_drive = true;
-        TurnRightNow = true;
-    }
-    else
-    {
-        Drive = false;
-        if (countturn == 0)
+        press = true;
+        if (!I_want_to_drive)
         {
-            SetVel_DtLeft_DtRight(100.0, 100.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.4, sec);
-            SetVel_DtLeft_DtRight(100.0, 5.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.3, sec);
-            SetVel_DtLeft_DtRight(100.0, 100.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.4, sec);
+            I_want_to_drive = true;
+            TurnRightNow = true;
         }
         else
         {
-            wait(0.15, sec);
-            SetVel_DtLeft_DtRight(100.0, 100.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(reverse);
-            wait(0.3, sec);
+            Drive = false;
+            wait(0.05, sec);
+            if (countturn == 0)
+            {
+                intake_uplaw = true;
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.4, sec);
+                SetVel_DtLeft_DtRight(100.0, 5.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.3, sec);
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.83, sec);
+                IntakeBeanBag();
+                SetVel_DtLeft_DtRight(100.0, 5.0);
+                DT_Left.spin(reverse);
+                DT_Right.spin(reverse);
+                wait(0.5, sec);
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+                DT_Left.spin(reverse);
+                DT_Right.spin(reverse);
+                wait(0.55, sec);
+                DriveTrainStop_SetStop(brake);
+            }
+            else
+            {
+                wait(0.15, sec);
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(reverse);
+                wait(0.3, sec);
+                DriveTrainStop_SetStop(brake);
+                wait(0.1, sec);
+                SetVel_DtLeft_DtRight(100.0, 100.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.38, sec);
+                SetVel_DtLeft_DtRight(100.0, 5.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.33, sec);
+                DriveTrainStop_SetStop(brake);
+                // wait(0.1, sec);
+                SetVel_DtLeft_DtRight(100.0, 90.0);
+                DT_Left.spin(forward);
+                DT_Right.spin(forward);
+                wait(0.3, sec);
+                // IntakeBeanBag();
+                // SetVel_DtLeft_DtRight(100.0, 100.0);
+                // DT_Left.spin(reverse);
+                // DT_Right.spin(reverse);
+                // wait(0.38, sec);
+                // SetVel_DtLeft_DtRight(100.0, 5.0);
+                // DT_Left.spin(reverse);
+                // DT_Right.spin(reverse);
+                // wait(0.5, sec);
+            }
             DriveTrainStop_SetStop(brake);
             wait(0.1, sec);
-            SetVel_DtLeft_DtRight(100.0, 100.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.38, sec);
-            SetVel_DtLeft_DtRight(100.0, 5.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.33, sec);
-            DriveTrainStop_SetStop(brake);
-            // wait(0.1, sec);
-            SetVel_DtLeft_DtRight(100.0, 100.0);
-            DT_Left.spin(forward);
-            DT_Right.spin(forward);
-            wait(0.27, sec);
+            countturn++;
+            Drive = true;
         }
-        DriveTrainStop_SetStop(brake);
-        wait(0.1, sec);
-        countturn++;
-        Drive = true;
     }
+    press = false;
 }

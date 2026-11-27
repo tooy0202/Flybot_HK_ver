@@ -81,8 +81,8 @@ void LaneChange(int direction)
     // direction = 1  เลี้ยวขวา
     // direction = -1 เลี้ยวซ้าย
 
-    double turnSpeed = 60;
-    int turnTime = 200;
+    double turnSpeed = 80;
+    int turnTime = 240;
 
     DT_Left.spin(forward, direction * turnSpeed, pct);
     DT_Right.spin(forward, -direction * turnSpeed, pct);
@@ -116,7 +116,7 @@ int drive()
 
             if (abs(flick) >= 90)
             {
-                double turnSpeed = flick * 0.7;
+                double turnSpeed = flick * 1.0;
 
                 LaneChange(turnSpeed);
             }
