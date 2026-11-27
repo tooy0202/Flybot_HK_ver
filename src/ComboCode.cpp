@@ -573,7 +573,7 @@ void Auto_shot()
             // หยุดระบบขับเคลื่อนแบบ Coast
             DriveTrainStop_SetStop(coast);
 
-            wait(40, msec);
+            wait(35, msec);
 
             // ตั้งค่ามอเตอร์ Intake
             Intake.setVelocity(127, percent);
@@ -586,6 +586,7 @@ void Auto_shot()
 
             // รอให้ระบบ Intake ทำงาน
             wait(350, msec);
+            press = false;
 
             // ==================================================
             // [7] GO TO SHOOT POSITION : เข้าตำแหน่งยิง
@@ -600,7 +601,7 @@ void Auto_shot()
             wait(200, msec);
 
             // เพิ่มความเร็วเพื่อเคลื่อนที่ต่อ
-            SetVel_DtLeft_DtRight(60.0, 70.0);
+            SetVel_DtLeft_DtRight(60.0, 72.0);
 
             DT_Left.spin(reverse);
             DT_Right.spin(reverse);
@@ -721,7 +722,6 @@ void Auto_shot()
                 break;
             }
         }
-        press = false;
 
         // ==================================================
         // [14] RESET : คืนสถานะหลังจบ Auto Shoot
@@ -779,6 +779,7 @@ void TurnRight()
                 DT_Right.spin(reverse);
                 wait(0.55, sec);
                 DriveTrainStop_SetStop(brake);
+                press = false;
             }
             else
             {
@@ -812,6 +813,7 @@ void TurnRight()
                 // DT_Left.spin(reverse);
                 // DT_Right.spin(reverse);
                 // wait(0.5, sec);
+                press = false;
             }
             DriveTrainStop_SetStop(brake);
             wait(0.1, sec);
@@ -819,5 +821,5 @@ void TurnRight()
             Drive = true;
         }
     }
-    press = false;
+    
 }
