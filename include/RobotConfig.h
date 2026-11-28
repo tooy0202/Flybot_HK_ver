@@ -8,11 +8,12 @@ extern vex::controller Controller;
 
 extern vex::motor_group DT_Left;
 extern vex::motor_group DT_Right;
-extern vex::motor FiringUnit;
-extern vex::motor Intake;
+extern vex::motor PTOLeft;
+extern vex::motor PTORight;
 extern vex::pneumatic hand;
 extern vex::touchled LED;
 extern vex::distance distanceFront;
 extern vex::distance distanceBack;
 
 void vexcodeInit();
+void PTO_group(vex::directionType dirleft, vex::directionType dirright);

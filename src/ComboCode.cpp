@@ -1,11 +1,12 @@
 #include "vex.h"
 #include "RobotConfig.h"
 #include "Drive.h"
-#include "FiringUnit.h"
+// #include "FiringUnit.h"
 #include "L4_Action.h"
 #include "Intake.h"
 #include "ComboCode.h"
 #include "AutoCode.h"
+#include "PTOAction.h"
 
 using namespace vex;
 
@@ -87,7 +88,7 @@ void Start_game()
     // DT_Right.stop();
     // L4_Combo();
     Intake_action_now = true;
-    Intake.setStopping(hold);
+    // Intake.setStopping(hold);
     wait(0.1, sec);
     intake_Now = true;
     wait(0.25, sec);
@@ -112,7 +113,7 @@ void L4_Combo()
     Drive = false;
     Intake_action_now = true;
     DriveTrainStop_SetStop(hold);
-    Intake.setStopping(hold);
+    // Intake.setStopping(hold);
     // wait(0.1, sec);
     SetVel_DtLeft_DtRight(100, 100);
     DT_Left.spinFor(forward, 500, degrees, false);
@@ -191,8 +192,8 @@ void Shoot()
         speedAuto = -30;
 
         IntakeBeanBag();
-        intake_uplaw = false;
     }
+    intake_uplaw = false;
 
     // ==================================================
     // [3] FRONT DISTANCE CHECK : ตรวจสอบระยะด้านหน้า
@@ -384,11 +385,13 @@ void Shoot()
     // [8] FIRE : ระบบยิง
     // ==================================================
 
-    FiringUnit.spin(reverse);
+    // FiringUnit.spin(reverse);
+    PTOReload(100, 100);
     wait(0.08, seconds);
 
     // ยิง
-    FiringUnit.spin(forward);
+    // FiringUnit.spin(forward);
+    PTOShoot(100, 100);
     wait(0.2, seconds);
 
     // ==================================================
@@ -576,11 +579,13 @@ void Auto_shot()
             wait(35, msec);
 
             // ตั้งค่ามอเตอร์ Intake
-            Intake.setVelocity(127, percent);
-            Intake.setMaxTorque(100, percent);
+            // Intake.setVelocity(127, percent);
+            // Intake.setMaxTorque(100, percent);
+            setMaxTorquePTo(100, 100);
 
             // เริ่มรับลูกบอล
-            Intake.spin(forward);
+            // Intake.spin(forward);
+
 
             IntakeBeanBag();
 
@@ -690,10 +695,13 @@ void Auto_shot()
             // [10] FIRE : สั่งยิง
             // ==================================================
 
-            FiringUnit.setStopping(coast);
-            FiringUnit.stop();
+            // FiringUnit.setStopping(coast);
+            setStopPTo(coast, coast);
+            // FiringUnit.stop();
+            StopPTO();
 
-            FiringUnit.spin(forward);
+            // FiringUnit.spin(forward);
+            PTOShoot(100, 100);
 
             wait(0.2, seconds);
 

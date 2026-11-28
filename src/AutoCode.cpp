@@ -11,7 +11,7 @@ using namespace vex;
 
 bool reload_Now, intake_Now;
 
-int getReload()
+int StageActionOfPTO()
 {
     while (true)
     {
@@ -20,16 +20,7 @@ int getReload()
             Reload();
             reload_Now = !reload_Now;
         }
-        wait(20, msec);
-    }
-    return 0;
-}
-
-int getIntake()
-{
-    while (true)
-    {
-        if (intake_Now)
+        else if (intake_Now)
         {
             if (Intake_action_now)
             {
@@ -48,6 +39,44 @@ int getIntake()
     }
     return 0;
 }
+
+// int getReload()
+// {
+//     while (true)
+//     {
+//         if (reload_Now)
+//         {
+//             Reload();
+//             reload_Now = !reload_Now;
+//         }
+//         wait(20, msec);
+//     }
+//     return 0;
+// }
+
+// int getIntake()
+// {
+//     while (true)
+//     {
+//         if (intake_Now)
+//         {
+//             if (Intake_action_now)
+//             {
+//                 Intake_down();
+//             }
+//             else
+//             {
+//                 Grab_Action();
+//                 wait(0.1, sec);
+//                 Intake_up();
+//                 Intake_down();
+//             }
+//             intake_Now = !intake_Now;
+//         }
+//         wait(20, msec);
+//     }
+//     return 0;
+// }
 
 int speedlimit()
 {

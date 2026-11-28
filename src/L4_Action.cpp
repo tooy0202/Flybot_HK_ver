@@ -18,7 +18,7 @@ void L4_up()
     //     wait(20, msec);
     // }
     // L4.stop();
-    Intake.setStopping(hold);
+    // Intake.setStopping(hold);
     hand.extend(cylinder1);
     L4_actionNow = true;
 }
@@ -35,7 +35,7 @@ void L4_down()
     //     wait(20, msec);
     // }
     // L4.stop();
-    Intake.setStopping(hold);
+    // Intake.setStopping(hold);
     hand.retract(cylinder1);
     L4_actionNow = false;
 }

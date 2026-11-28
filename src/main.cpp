@@ -14,6 +14,7 @@
 #include "Intake.h"
 #include "ComboCode.h"
 #include "AutoCode.h"
+#include "PTOAction.h"
 using namespace vex;
 
 int TimeLimit()
@@ -77,7 +78,13 @@ int main()
     // start config
     vexcodeInit();
 
-    // ============= start robot ================
+    // ============ test PTO ====================
+    // PTOArmUp(100, 100);
+    // PTOArmDown(100, 100);
+    // PTOShoot(100, 100);
+    // PTOReload(100, 100);
+
+    // ============= Start robot ================
     speedlimitOn = false;
     intake_Now = false;
     //
@@ -86,25 +93,30 @@ int main()
     //
     hand.retract(cylinder2);
     Grab = true;
-    hand.pumpOff();
-    // Start setup
-    DT_Left.setStopping(brake);
-    DT_Right.setStopping(brake);
-    // Intake set zero position
-    Intake.setVelocity(127, percent);
-    Intake.setMaxTorque(100, percent);
-    Intake.spin(forward);
+    // hand.pumpOff();
+
+    // ============= Start setup ==============
+    PTOArmDown(127, 127);
     wait(1, sec);
-    Intake.setMaxTorque(5, percent);
-    Intake.setStopping(hold);
-    wait(50, msec);
-    Intake.stop();
-    Intake.setPosition(0.0, deg);
-    hand.pumpOn();
-    // relord
-    Reload();
-    // L4down
+    // PTOLeft.setPosition(0.0, deg);
+
+    // reload
+    reload_Now = true;
+    wait(0.1, sec);
+
+    // key Intake down
+    Intake_action_now = true;
+    wait(0.1, sec);
+
+    // Intake
+    intake_Now = true;
+    wait(0.1, sec);
+
+    // L4_down();
     L4_down();
+    // Intake_action_now = false;
+
+    // ============= finish ===================
     LED.setColor(green);
 
     // ============== action ==================
@@ -121,9 +133,11 @@ int main()
     Controller.ButtonL3.pressed(TurnRight);
 
     // task
-    vex::task Intake_auto(getIntake);
-    vex::task Reload_auto(getReload);
+    vex::task Stage_action_of_PTO(StageActionOfPTO);
     vex::task driveTask(drive);
     vex::task speedlimitTask(speedlimit);
     vex::task timeLimit(TimeLimit);
+    //-------------------------------------
+    // vex::task Intake_auto(getIntake);
+    // vex::task Reload_auto(getReload);
 }

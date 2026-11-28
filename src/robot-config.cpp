@@ -22,9 +22,9 @@ motor_group DT_Right = motor_group(
     DT_Right2
 );
 
-motor FiringUnit = motor(PORT3, true);
+motor PTOLeft = motor(PORT3, false);
 
-motor Intake = motor(PORT10);
+motor PTORight = motor(PORT10, true);
 
 pneumatic hand = pneumatic(PORT2);
 //cy 2 คือ Intake
@@ -52,4 +52,9 @@ void initializeRandomSeed()
 void vexcodeInit()
 {
     initializeRandomSeed();
+}
+
+void PTO_group(vex::directionType dirleft, vex::directionType dirright){
+    PTOLeft.spin(dirleft);
+    PTORight.spin(dirright);
 }
